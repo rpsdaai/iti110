@@ -88,3 +88,12 @@ def predict_emotion(json_file, weights_file, imageFile):
 
     if cv2.waitKey(0) & 0xFF == ord('q'):
         cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+     predict_emotion('models\\xception120122.json', 'models\\xception120122.h5', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\angry.jpg') 
+     predict_emotion('models\\xception120122.json', 'models\\xception120122.h5', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\disgust.jpg') 
+     predict_emotion('models\\xception120122.json', 'models\\xception120122.h5', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\fear.jpg') 
+     predict_emotion('models\\xception120122.json', 'models\\xception120122.h5', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\happy.jpg') 
+     predict_emotion('models\\xception120122.json', 'models\\xception120122.h5', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\neutral.jpg') 
+     predict_emotion('models\\xception120122.json', 'models\\xception120122.h5', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\sad.jpg') 
+     predict_emotion('models\\xception120122.json', 'models\\xception120122.h5', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\surprise.jpg')       

@@ -73,18 +73,116 @@ def create_model_checkpoint_callback():
     log.info('checkpoint_prefix: ' + checkpoint_prefix)
     # print(checkpoint_prefix)
 
-    model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=True,
-                                                                   monitor='val_accuracy', mode='max', save_best_only=True)
+    # model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=True,
+    #                                                                monitor='val_accuracy', mode='max', save_best_only=True)
     # model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, monitor='val_accuracy', mode='max')
+    model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=True,
+                                                                   monitor='val_loss', save_best_only=True)
  
     return model_checkpoint_callback
 
 def create_earlystopping_callback():
     log.info('--> create_earlystopping_callback()')
 
-    es_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5)
+    es_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
     
     return es_callback
+
+def build_Xception(inputs, num_classes):
+    def entry_flow(inputs):
+        # Entry block
+        x = Conv2D(32, 3, strides=2, padding='same')(inputs)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+
+        x = Conv2D(64, 3, padding='same')(x)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+
+        previous_block_activation = x  # Set aside residual
+        
+        # Blocks 1, 2, 3 are identical apart from the feature depth.
+        for size in [128, 256, 728]:
+            x = Activation('relu')(x)
+            x = SeparableConv2D(size, 3, padding='same')(x)
+            x = BatchNormalization()(x)
+
+            x = Activation('relu')(x)
+            x = SeparableConv2D(size, 3, padding='same')(x)
+            x = BatchNormalization()(x)
+
+            x = MaxPooling2D(3, strides=2, padding='same')(x)
+            
+            # Project residual
+            residual = Conv2D(
+                size, 1, strides=2, padding='same')(previous_block_activation)
+            x = add([x, residual])  # Add back residual
+            previous_block_activation = x  # Set aside next residual
+
+        return x
+
+    def middle_flow(x, num_blocks=8):
+    
+        previous_block_activation = x
+
+        for _ in range(num_blocks):
+            x = Activation('relu')(x)
+            x = SeparableConv2D(728, 3, padding='same')(x)
+            x = BatchNormalization()(x)
+
+            x = Activation('relu')(x)
+            x = SeparableConv2D(728, 3, padding='same')(x)
+            x = BatchNormalization()(x)
+            
+            x = Activation('relu')(x)
+            x = SeparableConv2D(728, 3, padding='same')(x)
+            x = BatchNormalization()(x)
+
+            x = add([x, previous_block_activation])  # Add back residual
+            previous_block_activation = x  # Set aside next residual
+            
+        return x        
+
+    def exit_flow(x, num_classes=num_classes):
+
+        previous_block_activation = x
+
+        x = Activation('relu')(x)
+        x = SeparableConv2D(728, 3, padding='same')(x)
+        x = BatchNormalization()(x)
+
+        x = Activation('relu')(x)
+        x = SeparableConv2D(1024, 3, padding='same')(x)
+        x = BatchNormalization()(x)
+        
+        x = MaxPooling2D(3, strides=2, padding='same')(x)
+
+        # Project residual
+        residual = Conv2D(
+            1024, 1, strides=2, padding='same')(previous_block_activation)
+        x = add([x, residual])  # Add back residual
+        
+        x = SeparableConv2D(1536, 3, padding='same')(x)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+        
+        x = SeparableConv2D(2048, 3, padding='same')(x)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+        
+        x = GlobalAveragePooling2D()(x)
+        if num_classes == 1:
+            activation = 'sigmoid'
+        else:
+            activation = 'softmax'
+        return Dense(num_classes, activation=activation)(x)
+    
+    inputs = Input(shape=input_shape)
+    outputs = exit_flow(middle_flow(entry_flow(inputs)))
+    model = Model(inputs, outputs)
+    
+    return model
+
 
 def build_DenseNet(input_shape, num_blocks, num_layers_per_block, num_filters, growth_rate, dropout_rate, compress_factor, eps, num_classes):
     log.info('build_DenseNet(): num_blocks = ' + str(num_blocks) + ' num_layers_per_block = ' + str(num_layers_per_block) + ' num_filters = ' + str(num_filters) + ' growth_rate = ' + str(growth_rate) + ' dropout_rate = ' + str(dropout_rate) + ' compress_factor = ' + str(compress_factor) + ' eps = ' + str(eps) + ' num_classes = ' + str(num_classes))
@@ -137,9 +235,9 @@ def build_DenseNet(input_shape, num_blocks, num_layers_per_block, num_filters, g
     model = Model(inputs, outputs)
     return model
 
-def compile_model(model, filename):
+def compile_model(model, filename, lr=0.0001):
     log.info('--> compile_model()')
-    history = model.compile(loss=tf.keras.losses.categorical_crossentropy, optimizer=tf.keras.optimizers.Adam( learning_rate=0.0001 ), metrics=['accuracy'])
+    history = model.compile(loss=tf.keras.losses.categorical_crossentropy, optimizer=tf.keras.optimizers.Adam( learning_rate=lr ), metrics=['accuracy'])
     model.summary()
 
     # pip install pydot
@@ -214,39 +312,45 @@ def evaluate_model(model, X_test, y_test):
 
 if __name__ == '__main__':
     num_classes = 7
-    batch_size = 128
+    batch_size = 32
     # # num_epochs = 30
-    num_epochs = 100
+    num_epochs = 200
 
     X_train, y_train, X_test, y_test = eda.load_dataset('fer2013.csv', num_classes)
-    # train_flow, test_flow = do_datasetAugment(X_train, X_test, y_train, y_test, batch_size)
+    train_flow, test_flow = do_datasetAugment(X_train, X_test, y_train, y_test, batch_size)
 
+    # DenseNet parameters
     input_shape=(48,48,1)
-    num_blocks = 3
-    num_layers_per_block = 4
-    growth_rate = 16
-    dropout_rate = 0.4
-    compress_factor = 0.5
-    eps = 1.1e-5
-    num_filters = 16
+    # num_blocks = 3
+    # num_layers_per_block = 4
+    # growth_rate = 16
+    # dropout_rate = 0.4
+    # compress_factor = 0.5
+    # eps = 1.1e-5
+    # num_filters = 16
  
-    model = build_DenseNet(input_shape, num_blocks, num_layers_per_block, num_filters, growth_rate, dropout_rate, compress_factor, eps, num_classes)
-    compile_model(model, 'desnse121.png')
+    # model = build_DenseNet(input_shape, num_blocks, num_layers_per_block, num_filters, growth_rate, dropout_rate, compress_factor, eps, num_classes)
+    model = build_Xception(input_shape, num_classes)
+    # compile_model(model, 'desnse121.png')
+    compile_model(model, 'xception.png', lr=0.001)
 
-    # callback_list = [create_tb_callback(), create_model_checkpoint_callback(), create_earlystopping_callback()]
-    callback_list = [create_tb_callback(), create_model_checkpoint_callback()]
-    # train_history = train_model(model, train_flow, test_flow, num_epochs, X_train, X_test, batch_size, callback_list)
+    callback_list = [create_tb_callback(), create_model_checkpoint_callback(), create_earlystopping_callback()]
+    # callback_list = [create_tb_callback(), create_model_checkpoint_callback()]
+    # train_history = train_model_data_aug(model, train_flow, test_flow, num_epochs, X_train, X_test, batch_size, callback_list)
+
+    # enable if not using do_datasetAugment
     X_train = X_train / 255.0
     X_test = X_test / 255.0
 
-    # train_model(model, X_train, X_test, y_train, y_test, num_epochs, batch_size, callback_list)
+    train_model(model, X_train, X_test, y_train, y_test, num_epochs, batch_size, callback_list)
+    # END
 
     model_weights_directory = os.curdir + '\\models\\'
-    weights_filename = 'dense10012022.h5'
-    resume_training_model(model, model_weights_directory, weights_filename, X_train, X_test, y_train, y_test, num_epochs, batch_size, callback_list)
+    weights_filename = 'xception120122.h5'
+    # resume_training_model(model, model_weights_directory, weights_filename, X_train, X_test, y_train, y_test, num_epochs, batch_size, callback_list)
     
-    save_model_weights(model, 'models', 'dense10012022')
-    save_model(model, 'models', 'dense10012022')
+    save_model_weights(model, 'models', 'xception120122')
+    save_model(model, 'models', 'xception120122')
 
     # score = evaluate_model(model, X_test, y_test)
     # log.info(score)
