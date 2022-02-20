@@ -256,8 +256,8 @@ if __name__ == '__main__':
     train_model(model, X_train, X_test, y_train, y_test, num_epochs, batch_size, callback_list)
     # END
 
-    model_weights_directory = os.curdir + '\\models\\'
-    weights_filename = 'xception120122.h5'
+    # model_weights_directory = os.curdir + '\\models\\'
+    # weights_filename = 'densenet121-' + now + '.h5'
     # resume_training_model(model, model_weights_directory, weights_filename, X_train, X_test, y_train, y_test, num_epochs, batch_size, callback_list)
 
     save_model_weights(model, 'models/', 'densenet121-' + now)
