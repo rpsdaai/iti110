@@ -1,3 +1,5 @@
+import fer_eda as eda
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,7 +8,8 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import logging
 import sys
-
+import math
+import tensorflow as tf
 
 # pip install visualkeras (dependencies on aggdraw)
 # pip install aggdraw 
@@ -125,6 +128,7 @@ def plot_confusion_matrix(y_true, y_pred):
                      annot_kws={"size": 20})
     ax.set(xlabel='Predicted label', ylabel='True label')
 
+# Plots the Deep Learning Model architecture using visual keras
 def plot_dl_architecture(model, filename):
     log.info('-->plot_dl_architecture(): filename = ' + filename)
 
@@ -140,11 +144,54 @@ def plot_dl_architecture(model, filename):
     # Ref: https://openprojectrepo.com/project/paulgavrikov-visualkeras-python-data-validation
     visualkeras.layered_view(model, legend=True, font=font, to_file=filename).show()
 
-# plot_distribution(df_train)
-# plot_sample_faces(df_train)
-# plot_loss(history, 'loss')
-# plot_accuracy(history, 'accuracy')
+def plot_miss_classified(emotion, ytest_, yhat_test, X_test, model):
+    emotion_text_to_labels = dict((v,k) for k,v in emotion_description.items())
+
+    miss_happy_indices = np.where((ytest_ != yhat_test) & (ytest_ == emotion_text_to_labels[emotion]))[0]
+    print(f"total {len(miss_happy_indices)} miss labels out of {len(np.where(ytest_== emotion_text_to_labels[emotion])[0])} for emotion {emotion}")
+
+    cols = 15
+    rows = math.ceil(len(miss_happy_indices) / cols)
+    fig = plt.figure(1, (20, rows * 2))
+
+    for i,idx in enumerate(miss_happy_indices):
+        sample_img = X_test[idx,:,:,:]
+        sample_img = sample_img.reshape(1,*sample_img.shape)
+        pred = emotion_description[np.argmax(model.predict(sample_img), axis=1)[0]]
+
+        ax = plt.subplot(rows,cols,i+1)
+        ax.imshow(sample_img[0,:,:,0], cmap='gray')
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(f"p:{pred}")  
+
 if __name__ == '__main__':
-    font = font_manager.FontProperties(family='sans-serif', weight='bold')
-    file = font_manager.findfont(font)
-    print(file)
+    data_dir_path = ''
+    df = pd.read_csv(data_dir_path+'fer2013.csv')
+
+    df_train = df[df['Usage']=='Training']
+    df_valid = df[df['Usage']=='PrivateTest']
+    df_test = df[df['Usage']=='PublicTest']
+
+    # Plot data distribution of FER dataset
+    plot_distribution(df_train)
+
+    # Plot a sample of the FER dataset
+    plot_sample_faces(df_train)
+
+    # plot_loss(history, 'loss')
+    # plot_accuracy(history, 'accuracy')
+
+    # font = font_manager.FontProperties(family='sans-serif', weight='bold')
+    # file = font_manager.findfont(font)
+    # print(file)
+
+    # Plot misclassifications
+    X_train, y_train, X_test, y_test = eda.load_dataset(eda.fer_dataset, scale=True, num_classes=7)
+    loaded_model = tf.keras.models.load_model('experiments/run_10-experiment-6Feb2022/models/densenet121-06022022-093427/', compile=True)
+    yhat_test = np.argmax(loaded_model.predict(X_test), axis=1)
+    ytest_ = np.argmax(y_test, axis=1)
+
+    for emotion in emotion_labels:
+        plot_miss_classified(emotion, ytest_, yhat_test, X_test, loaded_model)
+
