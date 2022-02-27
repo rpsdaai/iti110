@@ -105,11 +105,12 @@ def predict_emotion_from_saved_model_file(saved_model_file, imageFile):
         img_pixels = np.expand_dims(img_pixels, axis=0)
         img_pixels /= 255.0
 
+        # numpy array returned
         predictions = loaded_model.predict(img_pixels)
         
         # returns the position of the largest value
         max_index = int(np.argmax(predictions))
-        print ('max_index: ', max_index)
+        # print ('max_index: ', max_index)
         # emotions = ['neutral', 'happiness', 'surprise', 'sadness', 'anger', 'disgust', 'fear']
         emotions = [
             'Angry',
@@ -120,7 +121,9 @@ def predict_emotion_from_saved_model_file(saved_model_file, imageFile):
             'Surprise',
             'Neutral'
         ]
-        predicted_emotion = emotions[max_index]
+        # emotion + probability concatented
+        predicted_emotion = emotions[max_index] + ' ' + str(round(predictions[0][max_index], 2))
+        # predicted_emotion = emotions[max_index]
 
         # image on which you can write the text.
         # text you want to write on image.
@@ -129,9 +132,11 @@ def predict_emotion_from_saved_model_file(saved_model_file, imageFile):
         # font size
         # font color
         # font stroke width
-        cv2.putText(img, predicted_emotion, (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+        # cv2.putText(img, predicted_emotion, (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+        cv2.putText(img, predicted_emotion, (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
     resized_img = cv2.resize(img, (1024, 768))
+    # resized_img = cv2.resize(img, (640, 480))
     cv2.imshow('Facial Emotion Recognition', resized_img)
 
     if cv2.waitKey(0) & 0xFF == ord('q'):
@@ -203,12 +208,13 @@ if __name__ == '__main__':
     # predict_emotion_from_saved_model_file('models\\dense09012022', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\surprise.jpg')
 
     now = '06022022-093427'
-    # json_file = 'densenet121-' + now + '.json'
-    # weights_file = 'densenet121-' + now + '.h5'
-    # model_file = os.curdir + '/models/' + 'densenet121-06022022' + now
-    # log.info('json_file: ' + json_file + ' weights_file: ' + weights_file)
-    # for (root,dirs,files) in os.walk('test_images', topdown=True):
-    #     for file in files:
-    #         predict_emotion('models/densenet121-06022022/'+json_file, 'models/densenet121-06022022/'+weights_file, 'test_images/' + file)
-    #         # predict_emotion_from_saved_model_file(model_file, 'test_images/' + file)
-    predict_emotion_from_video('models\\densenet121-06022022\\densenet121-06022022-093427\\')
+    json_file = 'densenet121-' + now + '.json'
+    weights_file = 'densenet121-' + now + '.h5'
+    model_file = os.curdir + '/models/' + 'densenet121-06022022' + now
+    log.info('json_file: ' + json_file + ' weights_file: ' + weights_file)
+    model_file_h5 = 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\iti110_working\\models\\densenet121-06022022\\densenet121-06022022-093427'
+    for (root,dirs,files) in os.walk('test_images', topdown=True):
+        for file in files:
+            # predict_emotion('models/densenet121-06022022/'+json_file, 'models/densenet121-06022022/'+weights_file, 'test_images/' + file)
+            predict_emotion_from_saved_model_file(model_file_h5, 'test_images/' + file)
+    # predict_emotion_from_video('models\\densenet121-06022022\\densenet121-06022022-093427\\')
