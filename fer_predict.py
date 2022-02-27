@@ -188,6 +188,58 @@ def predict_emotion_from_video(model_file):
     cap.release()
     cv2.destroyAllWindows()
 
+
+def predict_emotion_from_video_file(model_file, video_file):
+    face_classifier = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    classifier = load_model(model_file)
+
+    emotions = [
+            'Angry',
+            'Disgust',
+            'Fear',
+            'Happy',
+            'Sad',
+            'Surprise',
+            'Neutral'
+    ]
+
+    if os.path.exists(video_file):
+        print (video_file + ' FOUND!!')
+        # Read the video from specified path
+        cap = cv2.VideoCapture(video_file)
+    else:
+        print (video_file + ' DOES NOT Exist!!!')
+        
+    while (cap.isOpened()):
+        ret, frame = cap.read()
+        labels = []
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_classifier.detectMultiScale(gray,1.3,5)
+
+        for (x,y,w,h) in faces:
+            cv2.rectangle(frame, (x,y), (x+w,y+h), (255,0,0), 2)
+            roi_gray = gray[y:y+h,x:x+w]
+            roi_gray = cv2.resize(roi_gray, (48,48), interpolation = cv2.INTER_AREA)
+
+            if np.sum([roi_gray]) !=0:
+                roi = roi_gray.astype('float')/255.0
+                roi = img_to_array(roi)
+                roi = np.expand_dims(roi,axis=0)
+
+                preds = classifier.predict(roi)[0]
+                label = emotions[preds.argmax()]
+                label_position=(x,y)
+                cv2.putText(frame,label,label_position,cv2.FONT_HERSHEY_SIMPLEX,2,(0,255,0),3)
+            else:
+                cv2.putText(frame,'No Face Found',(20,20),cv2.FONT_HERSHEY_SIMPLEX,2,(0,255,0),3)
+        
+        cv2.imshow('Emotion Detector', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    cap.release()
+    cv2.destroyAllWindows()
+
 if __name__ == '__main__':
     #  predict_emotion('models\\xception120122.json', 'models\\xception120122.h5', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\angry.jpg') 
     #  predict_emotion('models\\xception120122.json', 'models\\xception120122.h5', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\disgust.jpg') 
@@ -207,14 +259,15 @@ if __name__ == '__main__':
     # predict_emotion_from_saved_model_file('models\\dense09012022', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\sad.jpg') 
     # predict_emotion_from_saved_model_file('models\\dense09012022', 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\ITI110\\test_images\\surprise.jpg')
 
-    now = '06022022-093427'
-    json_file = 'densenet121-' + now + '.json'
-    weights_file = 'densenet121-' + now + '.h5'
-    model_file = os.curdir + '/models/' + 'densenet121-06022022' + now
-    log.info('json_file: ' + json_file + ' weights_file: ' + weights_file)
-    model_file_h5 = 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\iti110_working\\models\\densenet121-06022022\\densenet121-06022022-093427'
-    for (root,dirs,files) in os.walk('test_images', topdown=True):
-        for file in files:
-            # predict_emotion('models/densenet121-06022022/'+json_file, 'models/densenet121-06022022/'+weights_file, 'test_images/' + file)
-            predict_emotion_from_saved_model_file(model_file_h5, 'test_images/' + file)
+    # now = '06022022-093427'
+    # json_file = 'densenet121-' + now + '.json'
+    # weights_file = 'densenet121-' + now + '.h5'
+    # model_file = os.curdir + '/models/' + 'densenet121-06022022' + now
+    # log.info('json_file: ' + json_file + ' weights_file: ' + weights_file)
+    # model_file_h5 = 'D:\\Users\\ng_a\\My NYP SDAAI\\PDC-2\\iti110_working\\models\\densenet121-06022022\\densenet121-06022022-093427'
+    # for (root,dirs,files) in os.walk('test_images', topdown=True):
+    #     for file in files:
+    #         # predict_emotion('models/densenet121-06022022/'+json_file, 'models/densenet121-06022022/'+weights_file, 'test_images/' + file)
+    #         predict_emotion_from_saved_model_file(model_file_h5, 'test_images/' + file)
     # predict_emotion_from_video('models\\densenet121-06022022\\densenet121-06022022-093427\\')
+    predict_emotion_from_video_file('models\\densenet121-06022022\\densenet121-06022022-093427\\', 'VID-20220109-WA0000.mp4')
